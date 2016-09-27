@@ -74,7 +74,8 @@ public final class Connection {
     public init(_ location: Location = .inMemory, readonly: Bool = false) throws {
         let flags = readonly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
         try check(sqlite3_open_v2(location.description, &_handle, flags | SQLITE_OPEN_FULLMUTEX, nil))
-        queue.setSpecific(key: Connection.queueKey, value: ())
+        // queue.setSpecific(key: Connection.queueKey, value: ())
+        queue.setSpecific(key: Connection.queueKey, value: queueContext)
     }
 
     /// Initializes a new connection to a database.
@@ -582,11 +583,10 @@ public final class Connection {
             }
         }
         
-        let qKey = unsafeBitCast(Connection.self, to: UnsafeMutableRawPointer.self)
-        if qKey == queueContext {
+        if DispatchQueue.getSpecific(key: Connection.queueKey) == queueContext {
             box()
         } else {
-            (queue).sync(execute: box) // FIXME: rdar://problem/21389236
+            queue.sync(execute: box) // FIXME: rdar://problem/21389236
         }
 
         if let failure = failure {
@@ -607,10 +607,14 @@ public final class Connection {
 
     fileprivate var queue = DispatchQueue(label: "SQLite.Database")
 
-    fileprivate static let queueKey = DispatchSpecificKey<()>()
+//  fileprivate static let queueKey = DispatchSpecificKey<()>()
 //    private static let queueKey = unsafeBitCast(Connection.self, to: UnsafePointer<Void>.self)
 
-    fileprivate lazy var queueContext: UnsafeMutableRawPointer = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+//  fileprivate lazy var queueContext: UnsafeMutableRawPointer = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+    
+    fileprivate static let queueKey = DispatchSpecificKey<Int>()
+    
+    fileprivate lazy var queueContext: Int = unsafeBitCast(self, to: Int.self)
 
 }
 
